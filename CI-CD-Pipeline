@@ -1,0 +1,50 @@
+pipeline {
+    agent any
+    tools {
+        maven 'maven3'
+        jdk 'jdk17'
+    }
+    stages {
+        stage('Git-checkout') {
+            steps{
+                git branch: 'main', url: 'https://github.com/anubhavbharti73/Ekart-DevOps-CI-CD/.git'
+            }
+        }
+        stage('Compile') {
+            steps {
+                sh 'mvn compile'
+            }
+        }
+        stage('Unit Tests') {
+            steps {
+                sh "mvn test -DskipTests=true"
+            }
+        }
+        stage ('Build') {
+            steps {
+                sh "mvn package -DskipTests=true"
+            }
+        }
+        stage('TRIVY FS SCAN') {
+            steps {
+                sh "trivy fs . > trivyfs.txt"
+            }
+        }
+        stage ('Docker Build and Tag') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-id', toolName: 'docker') {
+                        sh "docker build -t anubhav730/ekart:latest -f docker/Dockerfile ."
+                    }
+                }
+            }
+        }
+        stage ("K8s Deployement") {
+            steps{
+                withKubeConfig(caCertificate: '', clusterName: '', contextName: '', credentialsId: 'k8s-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://192.168.1.213:6443') {
+                              sh "kuvectl apply -f deployementservice.yml -n webapps"
+                              sh "kubectl get svc -n webapps"
+            }
+        }
+    }
+}
