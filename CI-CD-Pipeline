@@ -44,6 +44,7 @@ pipeline {
                 withKubeConfig(caCertificate: '', clusterName: '', contextName: '', credentialsId: 'k8s-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://192.168.1.213:6443') {
                               sh "kuvectl apply -f deployementservice.yml -n webapps"
                               sh "kubectl get svc -n webapps"
+                }
             }
         }
     }
