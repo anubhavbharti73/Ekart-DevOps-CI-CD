@@ -1,0 +1,56 @@
+pipeline {
+    agent any
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
+    }
+    stages {
+        stage('Git-checkout') {
+            steps{
+                git branch: 'main', url: 'https://github.com/anubhavbharti73/Ekart-DevOps-CI-CD'
+            }
+        }
+        
+        stage("Sonarqube") {
+            steps {
+                withSonarQubeEnv('sonar-server') {
+                    sh '''
+                        $SCANNER_HOME/bin/sonar-scanner \
+                        -Dsonar.projectKey=EkartGrafana \
+                        -Dsonar.projectName=EkartGrafana \
+                        -Dsonar.sources=src \
+                        -Dsonar.java.binaries=target/classes,target/test-classes
+                    '''
+                }
+            }
+        }
+        
+        stage('Docker Build and Push') {
+            steps {
+                script{
+                    withDockerRegistry(credentialsId: 'docker-id', toolName: 'docker'){
+                        sh "docker build -t ekartgrafana -f docker/Dockerfile ."
+                        sh "docker tag ekartgrafana anubhav730/ekartgrafana:latest "
+                        sh "docker push anubhav730/ekartgrafana:latest"
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy to container') {
+            steps {
+            //   sh 'docker run -d --name ekartgrafana -p 8070:8070 anubhav730/ekartgrafana:latest'
+            sh 'docker start d32b73e16fdb'
+            }
+        }
+    }
+    post {
+        always {
+            emailext attachLog: true,
+                to: "sparowb154@gmail.com",
+                subject: "'${currentBuild.result}'",
+                body: "Project: ${env.JOB_NAME}<br/>" +
+                        "Build Number: ${env.BUILD_NUMBER}<br/>" +
+                        "URL: ${env.BUILD_URL}<br/>"
+        }
+    }
+}
